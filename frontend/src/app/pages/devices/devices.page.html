@@ -1,0 +1,226 @@
+<div class="page-heading">
+  <div>
+    <p class="breadcrumb">Operations / Devices</p>
+    <h2>Device List</h2>
+    <p>Register equipment and manage simulated device health.</p>
+  </div>
+  <button class="btn btn-primary" type="button" (click)="openAdd()">
+    <i class="fa-solid fa-plus"></i> Add Device
+  </button>
+</div>
+
+<section class="content-card table-card">
+  <div class="datatable-toolbar">
+    <div class="toolbar-heading">
+      <div>
+        <h3>Device Records</h3>
+        <p>Search and filter registered equipment</p>
+      </div>
+      <span class="record-count"
+        >{{ devices.length }} result{{ devices.length === 1 ? '' : 's' }}</span
+      >
+    </div>
+    <div class="filter-bar">
+      <label class="search-box">
+        <span>
+          <i class="fa-solid fa-magnifying-glass"></i>
+        </span>
+        <input
+          [ngModel]="search"
+          (ngModelChange)="onSearchChange($event)"
+          placeholder="Search device code or name"
+        />
+      </label>
+      <label class="select-filter">
+        <span>Health Status</span>
+        <select [(ngModel)]="status" (change)="load(true)">
+          <option value="">All statuses</option>
+          <option *ngFor="let item of healthStatuses" [value]="item">{{ item }}</option>
+        </select>
+      </label>
+      <div class="filter-actions">
+        <button
+          class="btn btn-outline"
+          type="button"
+          (click)="clearFilters()"
+          [disabled]="!search && !status"
+        >
+          <i class="fa-solid fa-xmark"></i> Clear
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="loading-state"><span class="spinner"></span>Loading devices…</div>
+  <div *ngIf="!loading && !devices.length" class="empty-state">
+    <span><i class="fa-solid fa-microchip"></i></span>
+    <h3>No devices found</h3>
+    <p>Change your filters or add a device.</p>
+    <button class="btn btn-primary" (click)="openAdd()">
+      <i class="fa-solid fa-plus"></i> Add Device
+    </button>
+  </div>
+  <div *ngIf="!loading && devices.length" class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Device Code</th>
+          <th>Name</th>
+          <th>Solution</th>
+          <th>Health</th>
+          <th>Last Seen</th>
+          <th>Commands</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let device of pagedDevices; trackBy: trackById">
+          <td>
+            <button class="link-button code" (click)="openView(device)">
+              {{ device.deviceCode }}
+            </button>
+          </td>
+          <td>
+            <b>{{ device.name }}</b
+            ><small *ngIf="device.notes">{{ device.notes }}</small>
+          </td>
+          <td>{{ device.solutionType }}</td>
+          <td>
+            <select
+              class="health-select"
+              [class]="'health-select ' + device.healthStatus.toLowerCase()"
+              [ngModel]="device.healthStatus"
+              (ngModelChange)="changeHealth(device, $event)"
+              [disabled]="busy === 'health-' + device.id"
+              [attr.aria-label]="'Change health status for ' + device.deviceCode"
+            >
+              <option *ngFor="let item of healthStatuses" [value]="item">{{ item }}</option>
+            </select>
+          </td>
+          <td>{{ formatDate(device.lastSeenUtc) }}</td>
+          <td>
+            <div class="row-actions command-actions">
+              <button (click)="queueRestart(device)" [disabled]="busy === 'restart-' + device.id">
+                <i class="fa-solid fa-rotate-right"></i> Restart
+              </button>
+            </div>
+          </td>
+          <td>
+            <div class="row-actions crud-actions">
+              <button (click)="openView(device)"><i class="fa-solid fa-eye"></i> View</button
+              ><button (click)="openEdit(device)"><i class="fa-solid fa-pen"></i> Edit</button
+              ><button
+                class="delete"
+                (click)="deleteDevice(device)"
+                [disabled]="busy === 'delete-' + device.id"
+              >
+                <i class="fa-solid fa-trash-can"></i> Delete
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div *ngIf="!loading && devices.length" class="datatable-footer">
+    <div class="page-size">
+      <span>Rows per page</span
+      ><select [value]="pageSize" (change)="changePageSize($event)">
+        <option [value]="5">5</option>
+        <option [value]="10">10</option>
+        <option [value]="20">20</option>
+      </select>
+    </div>
+    <div class="result-range">
+      Showing <b>{{ rangeStart }}–{{ rangeEnd }}</b> of <b>{{ devices.length }}</b> devices
+    </div>
+    <nav class="pagination" aria-label="Device table pages">
+      <button (click)="setPage(page - 1)" [disabled]="page === 1" aria-label="Previous page">
+        <i class="fa-solid fa-chevron-left"></i>
+      </button>
+      <button
+        *ngFor="let item of visiblePages"
+        (click)="setPage(item)"
+        [class.active]="item === page"
+      >
+        {{ item }}
+      </button>
+      <button (click)="setPage(page + 1)" [disabled]="page === totalPages" aria-label="Next page">
+        <i class="fa-solid fa-chevron-right"></i>
+      </button>
+    </nav>
+  </div>
+</section>
+
+<div *ngIf="modalMode" class="modal-backdrop" (mousedown)="closeModal()">
+  <section class="modal" (mousedown)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div>
+        <p>{{ modalMode === 'view' ? 'Device details' : 'Device inventory' }}</p>
+        <h3>
+          {{
+            modalMode === 'add'
+              ? 'Add Device'
+              : modalMode === 'edit'
+                ? 'Edit Device'
+                : selected?.name
+          }}
+        </h3>
+      </div>
+      <button (click)="closeModal()" aria-label="Close dialog">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <div class="form-grid">
+        <label
+          >Device Code <em>*</em>
+          <input formControlName="deviceCode" maxlength="50" placeholder="DEV-2001" />
+          <small *ngIf="invalid('deviceCode')">Device code is required.</small>
+        </label>
+        <label
+          >Name <em>*</em>
+          <input formControlName="name" maxlength="100" placeholder="Solar Unit 01" />
+          <small *ngIf="invalid('name')">Name is required.</small>
+        </label>
+        <label
+          >Solution Type <em>*</em>
+          <input formControlName="solutionType" maxlength="30" placeholder="Solar" />
+          <small *ngIf="invalid('solutionType')">Solution type is required.</small>
+        </label>
+        <label
+          >Health Status <em>*</em>
+          <select formControlName="healthStatus">
+            <option *ngFor="let item of healthStatuses" [value]="item">{{ item }}</option>
+          </select>
+          <small *ngIf="invalid('healthStatus')">Health status is required.</small>
+        </label>
+        <label class="full"
+          >Last Seen<input type="datetime-local" formControlName="lastSeenUtc" /><span
+            class="field-help"
+            >Optional; stored in UTC.</span
+          ></label
+        >
+        <label class="full"
+          >Notes<textarea
+            formControlName="notes"
+            rows="3"
+            placeholder="Optional device notes"
+          ></textarea>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" type="button" (click)="closeModal()">
+          {{ modalMode === 'view' ? 'Close' : 'Cancel' }}</button
+        ><button
+          *ngIf="modalMode !== 'view'"
+          class="btn btn-primary"
+          type="submit"
+          [disabled]="saving"
+        >
+          {{ saving ? 'Saving…' : modalMode === 'edit' ? 'Save Changes' : 'Add Device' }}
+        </button>
+      </div>
+    </form>
+  </section>
+</div>

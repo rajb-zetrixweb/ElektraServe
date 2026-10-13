@@ -1,0 +1,43 @@
+<div class="page-heading">
+  <div>
+    <p class="breadcrumb">Operations / Dashboard</p>
+    <h2>Overview</h2>
+    <p>Live operational status across all registered devices.</p>
+  </div>
+  <button class="btn btn-outline" type="button" (click)="load()">
+    <i class="fa-solid fa-rotate-right"></i> Refresh
+  </button>
+</div>
+
+<section class="metrics" aria-label="Diagnostics summary">
+  <article class="metric blue">
+    <p>Total Devices</p>
+    <strong>{{ loading ? '—' : summary.totalDevices }}</strong
+    ><span>Registered equipment</span>
+  </article>
+  <article class="metric green">
+    <p>Healthy</p>
+    <strong>{{ loading ? '—' : summary.healthy }}</strong
+    ><span>Operating normally</span>
+  </article>
+  <article class="metric amber">
+    <p>Warning</p>
+    <strong>{{ loading ? '—' : summary.warning }}</strong
+    ><span>Needs attention</span>
+  </article>
+  <article class="metric red">
+    <p>Critical</p>
+    <strong>{{ loading ? '—' : summary.critical }}</strong
+    ><span>Immediate action</span>
+  </article>
+  <article class="metric amber">
+    <p>Commands Pending</p>
+    <strong>{{ loading ? '—' : summary.commandsPending }}</strong
+    ><span>Awaiting result</span>
+  </article>
+  <article class="metric green">
+    <p>Commands Completed</p>
+    <strong>{{ loading ? '—' : summary.commandsCompleted }}</strong
+    ><span>Successful requests</span>
+  </article>
+</section>

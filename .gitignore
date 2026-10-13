@@ -1,0 +1,11 @@
+# Dependencies and build output
+node_modules/
+dist/
+.angular/
+
+
+# Local environment and editor files
+.env
+.DS_Store
+.idea/
+.vscode/

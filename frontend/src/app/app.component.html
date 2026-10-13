@@ -1,0 +1,93 @@
+<div class="app-shell">
+  <header class="app-header">
+    <a routerLink="/dashboard" class="wordmark">
+      <strong>ElektraServe</strong>
+      <span></span>
+      <strong>POC SAMPLE</strong>
+    </a>
+    <h1>Device Diagnostics</h1>
+    <div class="demo-label"><i></i> Demo data only</div>
+  </header>
+
+  <div class="app-frame">
+    <aside class="sidebar">
+      <p class="menu-title">Menu</p>
+      <nav aria-label="Main navigation">
+        <a routerLink="/dashboard" routerLinkActive="active"
+          ><i class="fa-solid fa-chart-pie nav-icon"></i>Dashboard</a
+        >
+        <a routerLink="/devices" routerLinkActive="active"
+          ><i class="fa-solid fa-microchip nav-icon"></i>Devices</a
+        >
+        <a routerLink="/commands" routerLinkActive="active"
+          ><i class="fa-solid fa-terminal nav-icon"></i>Commands</a
+        >
+      </nav>
+      <div class="sidebar-foot"><span></span> API connected</div>
+    </aside>
+
+    <main class="page-content">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>
+
+<div class="toast-stack" aria-live="polite" aria-atomic="false">
+  <article
+    *ngFor="let toast of feedback.toasts()"
+    class="toast-message"
+    [class.error]="toast.type === 'error'"
+    role="status"
+  >
+    <span class="toast-icon"
+      ><i
+        class="fa-solid"
+        [class.fa-check]="toast.type === 'success'"
+        [class.fa-exclamation]="toast.type === 'error'"
+      ></i
+    ></span>
+    <div>
+      <strong>{{ toast.title }}</strong>
+      <p>{{ toast.message }}</p>
+    </div>
+    <button type="button" (click)="feedback.dismiss(toast.id)" aria-label="Dismiss notification">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+    <i></i>
+  </article>
+</div>
+
+<div
+  *ngIf="feedback.confirmation() as dialog"
+  class="confirm-backdrop"
+  (mousedown)="feedback.resolveConfirmation(false)"
+>
+  <section
+    class="confirm-dialog"
+    (mousedown)="$event.stopPropagation()"
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="confirm-title"
+    aria-describedby="confirm-message"
+  >
+    <span class="confirm-icon" [class.danger]="dialog.tone === 'danger'"
+      ><i class="fa-solid fa-triangle-exclamation"></i
+    ></span>
+    <h2 id="confirm-title">{{ dialog.title }}</h2>
+    <p id="confirm-message">{{ dialog.message }}</p>
+    <div class="confirm-actions">
+      <button class="btn btn-outline" type="button" (click)="feedback.resolveConfirmation(false)">
+        Cancel
+      </button>
+      <button
+        class="btn"
+        [class.btn-danger]="dialog.tone === 'danger'"
+        [class.btn-primary]="dialog.tone !== 'danger'"
+        type="button"
+        (click)="feedback.resolveConfirmation(true)"
+      >
+        {{ dialog.confirmLabel }}
+      </button>
+    </div>
+  </section>
+</div>

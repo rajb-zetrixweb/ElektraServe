@@ -1,0 +1,9 @@
+**/node_modules/
+**/dist/
+**/out-tsc/
+backend/data/
+backend/.env
+**/package-lock.json
+**/*.db
+**/*.db-shm
+**/*.db-wal

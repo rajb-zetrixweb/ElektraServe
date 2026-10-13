@@ -1,0 +1,181 @@
+<div class="page-heading">
+  <div>
+    <p class="breadcrumb">Operations / Commands</p>
+    <h2>Device Commands</h2>
+    <p>Review and process simulated restart requests.</p>
+  </div>
+  <button class="btn btn-outline" type="button" (click)="load()">
+    <i class="fa-solid fa-rotate-right"></i> Refresh
+  </button>
+</div>
+
+<section class="content-card table-card">
+  <div class="datatable-toolbar">
+    <div class="toolbar-heading">
+      <div>
+        <h3>Command Records</h3>
+        <p>Search requests and filter by processing status</p>
+      </div>
+      <span class="record-count">
+        {{ filteredCommands.length }} result{{ filteredCommands.length === 1 ? '' : 's' }}
+      </span>
+    </div>
+    <div class="filter-bar">
+      <label class="search-box">
+        <span><i class="fa-solid fa-magnifying-glass"></i></span>
+        <input
+          [(ngModel)]="search"
+          (ngModelChange)="page = 1"
+          placeholder="Search command ID or device"
+        />
+      </label>
+      <label class="select-filter">
+        <span>Command Status</span>
+        <select [(ngModel)]="status" (change)="load(true)">
+          <option value="">All statuses</option>
+          <option *ngFor="let item of statuses" [value]="item">{{ item }}</option>
+        </select>
+      </label>
+      <div class="filter-actions">
+        <button
+          class="btn btn-outline"
+          type="button"
+          (click)="clearFilters()"
+          [disabled]="!search && !status"
+        >
+          <i class="fa-solid fa-xmark"></i> Clear
+        </button>
+      </div>
+    </div>
+    <div class="filter-note"><i></i>Pending commands can be completed, failed, or cancelled.</div>
+  </div>
+
+  <div *ngIf="loading" class="loading-state"><span class="spinner"></span>Loading commands…</div>
+  <div *ngIf="!loading && !filteredCommands.length" class="empty-state">
+    <span><i class="fa-solid fa-terminal"></i></span>
+    <h3>No commands found</h3>
+    <p>Change the filters or queue a restart from Devices.</p>
+  </div>
+  <div *ngIf="!loading && filteredCommands.length" class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Command ID</th>
+          <th>Device</th>
+          <th>Command Type</th>
+          <th>Status</th>
+          <th>Notes</th>
+          <th>Requested At</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let command of pagedCommands; trackBy: trackById">
+          <td>
+            <span class="command-id">CMD-{{ command.id.toString().padStart(4, '0') }}</span>
+          </td>
+          <td>
+            <b>{{ command.deviceCode }}</b
+            ><small>{{ command.deviceName }}</small>
+          </td>
+          <td>
+            <span class="command-type">
+              <i class="fa-solid fa-rotate-right"></i> {{ command.commandType }}
+            </span>
+          </td>
+          <td>
+            <span class="status-pill" [class]="'status-pill ' + command.status.toLowerCase()">
+              {{ command.status }}
+            </span>
+          </td>
+          <td>
+            <small *ngIf="command.failureReason" class="failure-text">
+              {{ command.failureReason }}
+            </small>
+          </td>
+          <td>{{ formatDate(command.requestedAtUtc) }}</td>
+          <td>
+            <div *ngIf="command.status === 'Pending'; else finished" class="row-actions">
+              <button class="complete" (click)="transition(command, 'complete')" [disabled]="busy">
+                <i class="fa-solid fa-check"></i> Complete
+              </button>
+              <button (click)="openFail(command)" [disabled]="busy">
+                <i class="fa-solid fa-triangle-exclamation"></i> Fail
+              </button>
+              <button class="delete" (click)="transition(command, 'cancel')" [disabled]="busy">
+                <i class="fa-solid fa-ban"></i> Cancel
+              </button>
+            </div>
+            <ng-template #finished>
+              <span class="muted">Completed {{ formatDate(command.completedAtUtc) }}</span>
+            </ng-template>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div *ngIf="!loading && filteredCommands.length" class="datatable-footer">
+    <div class="page-size">
+      <span>Rows per page</span
+      ><select [value]="pageSize" (change)="changePageSize($event)">
+        <option [value]="5">5</option>
+        <option [value]="10">10</option>
+        <option [value]="20">20</option>
+      </select>
+    </div>
+    <div class="result-range">
+      Showing <b>{{ rangeStart }}–{{ rangeEnd }}</b> of
+      <b>{{ filteredCommands.length }}</b> commands
+    </div>
+    <nav class="pagination" aria-label="Command table pages">
+      <button (click)="setPage(page - 1)" [disabled]="page === 1" aria-label="Previous page">
+        <i class="fa-solid fa-chevron-left"></i></button
+      ><button
+        *ngFor="let item of visiblePages"
+        (click)="setPage(item)"
+        [class.active]="item === page"
+      >
+        {{ item }}</button
+      ><button (click)="setPage(page + 1)" [disabled]="page === totalPages" aria-label="Next page">
+        <i class="fa-solid fa-chevron-right"></i>
+      </button>
+    </nav>
+  </div>
+</section>
+
+<div *ngIf="failCommand" class="modal-backdrop" (mousedown)="closeFail()">
+  <section
+    class="modal modal-small"
+    (mousedown)="$event.stopPropagation()"
+    role="dialog"
+    aria-modal="true"
+  >
+    <div class="modal-head">
+      <div>
+        <p>Command CMD-{{ failCommand.id.toString().padStart(4, '0') }}</p>
+        <h3>Mark Command Failed</h3>
+      </div>
+      <button (click)="closeFail()" aria-label="Close dialog">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <form [formGroup]="failureForm" (ngSubmit)="submitFailure()">
+      <label
+        >Failure Reason <em>*</em
+        ><textarea
+          formControlName="failureReason"
+          maxlength="500"
+          rows="4"
+          placeholder="Describe why the device command failed"
+        ></textarea
+        ><small *ngIf="failureForm.controls.failureReason.touched && failureForm.invalid"
+          >A failure reason is required.</small
+        ></label
+      >
+      <div class="modal-actions">
+        <button class="btn btn-outline" type="button" (click)="closeFail()">Cancel</button
+        ><button class="btn btn-danger" type="submit" [disabled]="busy">Mark Failed</button>
+      </div>
+    </form>
+  </section>
+</div>
